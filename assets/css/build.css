@@ -1,0 +1,52 @@
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0; padding: 0;
+  overflow: hidden;
+}
+
+header {
+  width: 100%;
+  height: 75px;
+  line-height: 75px;
+  background-color: #555;
+  font-size: 30px;
+  text-align: center;
+  color: white;
+  letter-spacing: 1px;
+  font-family: 'Helvetica Neue' 'san-serif';
+}
+
+button#large, button#small {
+  position: absolute;
+  right: 10px;
+}
+button#large { top: 12px; }
+button#small {top: 42px; }
+button#colorings { left: 10px; position: absolute; top: 27px; }
+
+.network-container {
+  width: 100%;
+  height: calc(100% - 75px);
+  position: relative;
+  background-color: #333;
+}
+
+/* z-index is important for brush events */
+svg { position: absolute; z-index: 0; }
+canvas { position: absolute; z-index: 1; }
+
+svg.brush-disabled { cursor: move !important; }
+svg.brush-disabled > g > g.brush { display: none; }
+
+.network-container { cursor: crosshair;}
+.network-container.brush-disabled { cursor: move;}
+
+circle, line {
+  transition: fill 1s ease, stroke 1s ease, stroke-width 1s ease;
+}
+
+.active {
+  fill: white !important;
+  stroke: white !important;
+  stroke-width: 2px;
