@@ -23,6 +23,7 @@ var svgGrapher = function () {
     },
 
     render: function (data) {
+      data = _.clone(data);
       this.width = this.$el.width();
       this.height = this.$el.height();
 
@@ -131,8 +132,7 @@ var svgGrapher = function () {
         } else n.color = n.prevColor ? n.prevColor : n.color;
       });
 
-      this.canvas._data = this.data;
-      this.canvas.update(_.keys(selectedNodes));
+      this.canvas.update('nodes', _.pluck(nodes, 'id'));
       this.canvas.render();
     },
 

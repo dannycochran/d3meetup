@@ -401,6 +401,7 @@ Grapher.prototype = {
       var link = links[i];
       return _.indexOf(indices, link.from) > -1 || _.indexOf(indices, link.to) > -1;
     });
+
     return sprites;
   },
 
@@ -413,6 +414,7 @@ Grapher.prototype = {
 
     // if color is still not set, use the default
     if (_.isNaN(color)) color = this.foregroundColor();
+
     return color;
   },
 
