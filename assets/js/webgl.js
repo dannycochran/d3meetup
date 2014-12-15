@@ -1,4 +1,4 @@
-var svgGrapher = function () {
+var webglGrapher = function () {
   var grapher = {
     colors: ['#d73027', '#f46d43', '#fdae61', '#fee090', '#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#FFFFFF'],
     initialize: function () {
@@ -129,7 +129,7 @@ var svgGrapher = function () {
         if (n.id in selectedNodes) {
           n.prevColor = n.color;
           n.color = 8;
-        } else n.color = n.prevColor ? n.prevColor : n.color;
+        } else n.color = n.prevColor !== undefined ? n.prevColor : n.color;
       });
 
       this.canvas.update('nodes', _.pluck(nodes, 'id'));
@@ -157,6 +157,6 @@ var svgGrapher = function () {
 };
 
 $(document).ready(function () {
-  var grapher = new svgGrapher();
+  var grapher = new webglGrapher();
   grapher.render(smallNetwork);
 });
