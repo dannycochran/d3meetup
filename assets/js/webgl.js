@@ -43,6 +43,7 @@ var webglGrapher = function () {
           xTranslate = (this.width - dataWidth * scale) / 2 - positionDomain[0][0] * scale,
           yTranslate = (this.height - dataHeight * scale) / 2 - positionDomain[1][0] * scale;
       this.transform = {translate: [xTranslate, yTranslate], scale: scale};
+      this.previous = {};
 
       // set up d3 zoom
       this.zoom // scale range factor of 10
@@ -124,28 +125,25 @@ var webglGrapher = function () {
     },
 
     updateSelectedNodes: function () {
-      var selectedNodes = this.selectedNodes, nodes = this.data.nodes;
-      _.each(nodes, function (n) {
+      var selectedNodes = this.selectedNodes;
+      _.each(this.data.nodes, function (n) {
         if (n.id in selectedNodes) {
-          n.prevColor = n.color;
+          n.prevColor = n.prevColor !== undefined ? n.prevColor : n.color;
           n.color = 8;
         } else n.color = n.prevColor !== undefined ? n.prevColor : n.color;
       });
 
-      this.canvas.update('nodes', _.pluck(nodes, 'id'));
-      this.canvas.render();
+      var updatedNodes = _.chain(selectedNodes).keys().union(_.keys(this.previous)).map(Number).value();
+      this.canvas.update('nodes', updatedNodes).render();
+      this.previous = selectedNodes;
     },
 
     updateColorings: function () { // random colors
       _.each(this.data.nodes, function (n) { n.color = Math.floor(Math.random() * 8); });
-      this.canvas.data(this.data);
-      this.canvas.render();
+      this.canvas.data(this.data).render();
     },
 
-    updateTransform: function () {
-      this.canvas.transform(this.transform);
-      this.canvas.render();
-    },
+    updateTransform: function () { this.canvas.transform(this.transform).render(); },
 
     toggleNetwork: function (e) {
       var networkData = $(e.currentTarget).attr('id') === 'small' ? smallNetwork : largeNetwork;

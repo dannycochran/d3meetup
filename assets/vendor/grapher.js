@@ -83,7 +83,8 @@
    return require;
 })({
 1: [function(require, module, exports) {
-// Ayasdi Inc. Copyright 2014 - all rights reserved.
+// Ayasdi Inc. Copyright 2014
+// Grapher.js may be freely distributed under the Apache 2.0 license
 
 var Grapher = require('./modules/grapher.js');
 
@@ -93,6 +94,9 @@ Ayasdi.Grapher = Grapher;
 
 }, {"./modules/grapher.js":2}],
 2: [function(require, module, exports) {
+// Ayasdi Inc. Copyright 2014
+// Grapher.js may be freely distributed under the Apache 2.0 license
+
 // Grapher: WebGL network graph rendering with PIXI
 function Grapher () {
   this.initialize.apply(this, arguments);
@@ -220,16 +224,9 @@ Grapher.prototype = {
   },
 
   // Accepts network data in the form:
-  // var data = {
-  //   nodes: [
-  //     {x: 0, y: 0, r: 20},
-  //     {x: 1, y: 1, r: 15},
-  //     {x: 1, y: 2, r: 25}
-  //   ],
-  //   links: [
-  //     {from: 0, to: 1},
-  //     {from: 1, to: 2s}
-  //   ]
+  // {
+  //   nodes: [{x: 0, y: 0, r: 20, color: (swatch or hex/rgb)}, ... ].
+  //   links: [{from: 0, to: 1, color: (swatch or hex/rgb)}, ... ]
   // }
   data: function (data) {
     if (_.isUndefined(data)) return this._data;
@@ -276,11 +273,24 @@ Grapher.prototype = {
     if (indices && end) indices = _.range(indices, end);
     if (_.isArray(indices)) {
       _.each(indices, this._update(type, true));
-      if (type === NODES) { _.each(this._findLinks(indices), this._update(LINKS)); }
+      if (type === NODES) _.each(this._findLinks(indices), this._update(LINKS, true));
     } else {
       if (type !== NODES) _.each(this[LINKS], this._update(LINKS));
       if (type !== LINKS) _.each(this[NODES], this._update(NODES));
     }
+    return this;
+  },
+
+  // Update an individual node by index.
+  updateNode: function (index, willUpdateLinks) {
+    this._updateNodeByIndex(index);
+    if (willUpdateLinks) _.each(this._findLinks([index]), this._update(LINKS, true));
+    return this;
+  },
+
+  // Update an individual link by index.
+  updateLink: function (index) {
+    this._updateLinkByIndex(index);
     return this;
   },
 
@@ -306,6 +316,11 @@ Grapher.prototype = {
 
   pause: function () {
     if (this._frame) cancelAnimationFrame(this._frame);
+    return this;
+  },
+
+  resize: function (width, height) {
+    this.renderer.resize(width, height);
     return this;
   },
 
@@ -394,15 +409,25 @@ Grapher.prototype = {
   _updateLinkByIndex: function (i) { this._updateLink(this[LINKS][i], i); },
 
   _findLinks: function (indices) {
-    var links = this.data()[LINKS];
-    indices = _.map(indices, function (n, i) { return Number(n); });
+    var isLinked = function (indices, l) {
+          var i, len = indices.length, flag = false;
+          for (i = 0; i < len; i++) {
+            if (l.to == indices[i] || l.from == indices[i]) { // loose equivalience is sufficient
+              flag = true;
+              break;
+            }
+          }
+          return flag;
+        },
+        links = this.data()[LINKS],
+        i, numLinks = links.length,
+        updatingLinks = [];
 
-    var sprites = _.filter(this[LINKS], function (l, i) {
-      var link = links[i];
-      return _.indexOf(indices, link.from) > -1 || _.indexOf(indices, link.to) > -1;
-    });
+    for (i = 0; i < numLinks; i++) {
+      if (isLinked(indices, links[i])) updatingLinks.push(i);
+    }
 
-    return sprites;
+    return updatingLinks;
   },
 
   _findColor: function (c) {
@@ -414,17 +439,15 @@ Grapher.prototype = {
 
     // if color is still not set, use the default
     if (_.isNaN(color)) color = this.foregroundColor();
-
     return color;
   },
 
   _setColor: function (type, sprite, color) {
-    var texture = Grapher.getTexture(type, color),
-        batch = this._getBatch(type, color);
+    var texture = Grapher.getTexture(type, color);
 
     sprite.setTexture(texture);
     if (sprite.parent) this._exit(sprite);
-    batch.addChild(sprite);
+    this._getBatch(type, color).addChild(sprite);
   },
 
   _getBatch: function (type, color) {
@@ -19982,6 +20005,9 @@ Object.defineProperty(PIXI.RGBSplitFilter.prototype, 'blue', {
 
 }, {}],
 5: [function(require, module, exports) {
+// Ayasdi Inc. Copyright 2014
+// Color.js may be freely distributed under the Apache 2.0 license
+
 var Color = module.exports = {
   hexToRgb: hexToRgb,
   rgbToHex: rgbToHex,
