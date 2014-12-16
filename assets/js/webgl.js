@@ -72,7 +72,10 @@ var webglGrapher = function () {
       var Grapher = Ayasdi.Grapher;
       Grapher.setPalette('RdYlBu', this.colors);
 
-      this.canvas = new Grapher(this.width, this.height, {transparent:true});
+      this.canvas = new Grapher(this.width, this.height, {
+        transparent: true,
+        resolution: devicePixelRatio
+      });
       this.canvas.palette('RdYlBu');
       this.canvas.data(data);
 

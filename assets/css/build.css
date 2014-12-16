@@ -34,7 +34,11 @@ button#colorings { left: 10px; position: absolute; top: 27px; }
 
 /* z-index is important for brush events */
 svg { position: absolute; z-index: 0; }
-canvas { position: absolute; z-index: 1; }
+canvas {
+  position: absolute;
+  z-index: 1;
+  width: 100%;
+}
 
 svg.brush-disabled { cursor: move !important; }
 svg.brush-disabled > g > g.brush { display: none; }
