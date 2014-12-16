@@ -2,21 +2,20 @@ var sigmaGrapher = function () {
   var grapher = {
     colors: ['#d73027', '#f46d43', '#fdae61', '#fee090', '#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#FFFFFF'],
     initialize: function () {
-      this.$el = $('div.network-container');
-      this.$header = $('header');
-
       this.brush = d3.svg.brush().on('brushend', this.onBrushEnd.bind(this));
       this.zoom = d3.behavior.zoom();
 
+      this.$el = $('div.network-container');
+      this.$header = $('header');
       this.$svg = d3.select(this.$el.get(0)).append('svg').attr({width: '100%', height: '100%'});
-
       this.$brush = this.$svg.append('g').attr('class', 'brush');
       this.$brush.append('rect');
-      this.$brush.call(this.brush);
 
-      this.$header.find('button').on('click', this.toggleNetwork.bind(this));
-      this.$el.on('mousedown mouseup mousemove', this.onMouseEvent.bind(this));
+      this.$brush.call(this.brush);
       d3.select(this.$el.get(0)).call(this.zoom);
+
+      this.$el.on('mousedown mouseup mousemove', this.onMouseEvent.bind(this));
+      this.$header.find('button').on('click', this.toggleNetwork.bind(this));
 
       $(window).on('keydown', this.setBrushEnabled.bind(this));
       $(window).on('keyup', this.setBrushEnabled.bind(this));
@@ -42,7 +41,7 @@ var sigmaGrapher = function () {
           yTranslate = (this.height - dataHeight * scale) / 2 - positionDomain[1][0] * scale;
       this.transform = {translate: [0, 0], scale: 1};
       this.previous = {};
-      console.log(this.transform);
+
       // set up d3 zoom
       this.zoom // scale range factor of 10
         .scaleExtent([this.transform.scale / scaleRange, this.transform.scale * scaleRange])
@@ -71,7 +70,7 @@ var sigmaGrapher = function () {
         e.id = i.toString(10);
         e.source = e.from.toString(10);
         e.target = e.to.toString(10);
-        e.color = '#ccc';
+        e.color = '#888';
       });
 
       this.updateColorings();
@@ -85,7 +84,8 @@ var sigmaGrapher = function () {
         settings: {
           drawLabels: false,
           enableCamera: true,
-          mouseWheelEnabled: false
+          mouseWheelEnabled: false,
+          mouseZoomDuration: 0
         }
       });
 
@@ -107,7 +107,6 @@ var sigmaGrapher = function () {
     },
 
     onZoom: function () {
-      console.log('on zoom');
       // If we're zooming with the mouse wheel or dragging with the alt key pressed, update the transform
       if (this.transform.scale !== d3.event.scale || d3.event.sourceEvent.altKey || d3.event.sourceEvent.ctrlKey) {
         this.transform = {translate: d3.event.translate, scale: d3.event.scale};
@@ -116,12 +115,12 @@ var sigmaGrapher = function () {
     },
 
     onBrushEnd: function () { // Select the brushed nodes then remove the brush
-      console.log('on brush end');
       var r = this.brush.extent(),
           selectedNodes = {},
           transform = this.transform,
           transformX = function (x) { return x * transform.scale + transform.translate[0]; },
           transformY = function (y) { return y * transform.scale + transform.translate[1]; };
+
       _.each(this.data.nodes, function (d) {
         var x = transformX(d.x), y = transformY(d.y);
         if(r[0][0] <= x && x < r[1][0] && r[0][1] <= y && y < r[1][1]) selectedNodes[d.id] = true;
@@ -134,14 +133,14 @@ var sigmaGrapher = function () {
 
     updateSelectedNodes: function () {
       var selectedNodes = this.selectedNodes;
-      _.each(this.data.nodes, function (n) {
+
+      this.s.graph.nodes().forEach(function (n) {
         if (n.id in selectedNodes) {
           n.prevColor = n.prevColor !== undefined ? n.prevColor : n.color;
-          n.color = 8;
+          n.color = this.colors[8];
         } else n.color = n.prevColor !== undefined ? n.prevColor : n.color;
       });
 
-      // var updatedNodes = _.chain(selectedNodes).keys().union(_.keys(this.previous)).map(Number).value();
       this.s.refresh();
       this.previous = selectedNodes;
     },
@@ -153,7 +152,15 @@ var sigmaGrapher = function () {
     },
 
     updateTransform: function () {
-      sigma.utils.zoomTo(this.s.camera, this.transform.translate[0], this.transform.translate[1], this.transform.scale);
+      var transform = this.transform;
+      this.$brush.attr({
+        transform: 'translate(' + transform.translate[0] + ',' + transform.translate[1] + ')scale(' + transform.scale + ')'
+      });
+
+      this.s.camera.x = this.transform.translate[0];
+      this.s.camera.x = this.transform.translate[1];
+      this.s.camera.ratio = this.transform.scale;
+      this.s.refresh();
     },
 
     toggleNetwork: function (e) {
