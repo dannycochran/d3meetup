@@ -14,9 +14,11 @@ var sigmaGrapher = function () {
       this.$brush.append('rect');
       this.$brush.call(this.brush);
 
-      this.$header.find('button').on('click', this.toggleNetwork.bind(this));
+      this.$header.find('button:not(#colorings)').on('click', this.toggleNetwork.bind(this));
+      this.$header.find('button#colorings').on('click', this.updateColorings.bind(this));
+
       this.$el.on('mousedown mouseup mousemove', this.onMouseEvent.bind(this));
-      d3.select(this.$el.get(0)).call(this.zoom);
+      // d3.select(this.$el.get(0)).call(this.zoom);
 
       $(window).on('keydown', this.setBrushEnabled.bind(this));
       $(window).on('keyup', this.setBrushEnabled.bind(this));
@@ -42,7 +44,7 @@ var sigmaGrapher = function () {
           yTranslate = (this.height - dataHeight * scale) / 2 - positionDomain[1][0] * scale;
       this.transform = {translate: [0, 0], scale: 1};
       this.previous = {};
-      console.log(this.transform);
+
       // set up d3 zoom
       this.zoom // scale range factor of 10
         .scaleExtent([this.transform.scale / scaleRange, this.transform.scale * scaleRange])
@@ -71,10 +73,12 @@ var sigmaGrapher = function () {
         e.id = i.toString(10);
         e.source = e.from.toString(10);
         e.target = e.to.toString(10);
-        e.color = '#ccc';
-      });
+        e.color = this.colors[Math.floor(Math.random() * 8)];
+      }.bind(this));
 
-      this.updateColorings();
+      _.each(data.nodes, function (n) {
+        n.color = this.colors[Math.floor(Math.random() * 8)];
+      }.bind(this));
 
       sigma.renderers.def = sigma.renderers.webgl;
       // Instantiate sigma:
@@ -90,7 +94,7 @@ var sigmaGrapher = function () {
       });
 
       this.updateTransform();
-      this.$el.find('.sigma-labels, .sigma-mouse').remove();
+      this.$el.find('.sigma-labels').remove();
       return this;
     },
 
@@ -107,7 +111,6 @@ var sigmaGrapher = function () {
     },
 
     onZoom: function () {
-      console.log('on zoom');
       // If we're zooming with the mouse wheel or dragging with the alt key pressed, update the transform
       if (this.transform.scale !== d3.event.scale || d3.event.sourceEvent.altKey || d3.event.sourceEvent.ctrlKey) {
         this.transform = {translate: d3.event.translate, scale: d3.event.scale};
@@ -116,7 +119,6 @@ var sigmaGrapher = function () {
     },
 
     onBrushEnd: function () { // Select the brushed nodes then remove the brush
-      console.log('on brush end');
       var r = this.brush.extent(),
           selectedNodes = {},
           transform = this.transform,
@@ -147,9 +149,13 @@ var sigmaGrapher = function () {
     },
 
     updateColorings: function () { // random colors
-      _.each(this.data.nodes, function (n) {
+      _.each(this.s.graph.nodes(), function (n) {
         n.color = this.colors[Math.floor(Math.random() * 8)];
       }.bind(this));
+      _.each(this.s.graph.edges(), function (l) {
+        l.color = this.colors[Math.floor(Math.random() * 8)];
+      }.bind(this));
+      this.s.refresh();
     },
 
     updateTransform: function () {
