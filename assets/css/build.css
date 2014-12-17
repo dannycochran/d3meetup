@@ -15,11 +15,13 @@ header {
   color: white;
   letter-spacing: 1px;
   font-family: 'Helvetica Neue' 'san-serif';
+  z-index: 1;
 }
 
 button#large, button#small {
   position: absolute;
   right: 10px;
+  cursor: pointer;
 }
 button#large { top: 12px; }
 button#small {top: 42px; }
@@ -30,6 +32,7 @@ button#colorings { left: 10px; position: absolute; top: 27px; }
   height: calc(100% - 75px);
   position: relative;
   background-color: #333;
+  z-index: 0;
 }
 
 /* z-index is important for brush events */
@@ -46,11 +49,8 @@ svg.brush-disabled > g > g.brush { display: none; }
 .network-container { cursor: crosshair;}
 .network-container.brush-disabled { cursor: move;}
 
-circle, line {
-  transition: fill 1s ease, stroke 1s ease, stroke-width 1s ease;
-}
-
 .active {
   fill: white !important;
   stroke: white !important;
   stroke-width: 2px;
+}

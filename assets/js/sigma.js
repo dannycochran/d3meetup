@@ -2,23 +2,19 @@ var sigmaGrapher = function () {
   var grapher = {
     colors: ['#d73027', '#f46d43', '#fdae61', '#fee090', '#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#FFFFFF'],
     initialize: function () {
+      this.brush = d3.svg.brush().on('brushend', this.onBrushEnd.bind(this));
+
       this.$el = $('div.network-container');
       this.$header = $('header');
-
-      this.brush = d3.svg.brush().on('brushend', this.onBrushEnd.bind(this));
-      this.zoom = d3.behavior.zoom();
-
       this.$svg = d3.select(this.$el.get(0)).append('svg').attr({width: '100%', height: '100%'});
-
       this.$brush = this.$svg.append('g').attr('class', 'brush');
       this.$brush.append('rect');
+
       this.$brush.call(this.brush);
 
+      this.$el.on('mousedown mouseup mousemove', this.onMouseEvent.bind(this));
       this.$header.find('button:not(#colorings)').on('click', this.toggleNetwork.bind(this));
       this.$header.find('button#colorings').on('click', this.updateColorings.bind(this));
-
-      this.$el.on('mousedown mouseup mousemove', this.onMouseEvent.bind(this));
-      // d3.select(this.$el.get(0)).call(this.zoom);
 
       $(window).on('keydown', this.setBrushEnabled.bind(this));
       $(window).on('keyup', this.setBrushEnabled.bind(this));
@@ -42,15 +38,7 @@ var sigmaGrapher = function () {
           scale = Math.min(this.width / dataWidth, this.height / dataHeight, 2) / 1.1, // 1.1 pads the network
           xTranslate = (this.width - dataWidth * scale) / 2 - positionDomain[0][0] * scale,
           yTranslate = (this.height - dataHeight * scale) / 2 - positionDomain[1][0] * scale;
-      this.transform = {translate: [0, 0], scale: 1};
-      this.previous = {};
-
-      // set up d3 zoom
-      this.zoom // scale range factor of 10
-        .scaleExtent([this.transform.scale / scaleRange, this.transform.scale * scaleRange])
-        .translate(this.transform.translate)
-        .scale(this.transform.scale)
-        .on('zoom', this.onZoom.bind(this));
+      this.transform = {translate: [xTranslate, yTranslate], scale: scale};
 
       this.brush.x(d3.scale.identity().domain(positionDomain[0]))
           .y(d3.scale.identity().domain(positionDomain[1]))
@@ -76,7 +64,8 @@ var sigmaGrapher = function () {
         e.color = this.colors[Math.floor(Math.random() * 8)];
       }.bind(this));
 
-      _.each(data.nodes, function (n) {
+
+      _.each(this.data.nodes, function (n) {
         n.color = this.colors[Math.floor(Math.random() * 8)];
       }.bind(this));
 
@@ -89,33 +78,29 @@ var sigmaGrapher = function () {
         settings: {
           drawLabels: false,
           enableCamera: true,
-          mouseWheelEnabled: false
+          mouseWheelEnabled: true,
+          mouseZoomDuration: 25
         }
       });
 
-      this.updateTransform();
       this.$el.find('.sigma-labels').remove();
       return this;
     },
 
     onMouseEvent: function (e) {
       if (this.$el.css('cursor') === 'move') return;
+
+      if (e.type === 'mousedown') this.$el.find('.sigma-mouse').hide();
+      else if (e.type === 'mouseup') this.$el.find('.sigma-mouse').show();
+
       var evt = document.createEvent('MouseEvent');
       evt.initMouseEvent(e.type, e.canBubble,e.cancelable,e.view,e.detail,e.screenX,e.screenY,e.clientX,e.clientY,e.ctrlKey,e.altKey,e.shiftKey,e.metaKey,e.button,e.relatedTarget);
       this.$brush.node().dispatchEvent(evt);
     },
 
     setBrushEnabled: function (e) {
-      if (e.type === 'keydown' && (e.altKey || e.ctrlKey)) this.$svg.classed('brush-disabled', true);
-      else if (e.type === 'keyup') this.$svg.classed('brush-disabled', false);
-    },
-
-    onZoom: function () {
-      // If we're zooming with the mouse wheel or dragging with the alt key pressed, update the transform
-      if (this.transform.scale !== d3.event.scale || d3.event.sourceEvent.altKey || d3.event.sourceEvent.ctrlKey) {
-        this.transform = {translate: d3.event.translate, scale: d3.event.scale};
-        this.updateTransform();
-      } else this.zoom.translate(this.transform.translate);
+      if (e.type === 'keydown' && (e.altKey || e.ctrlKey)) this.$el.addClass('brush-disabled');
+      else if (e.type === 'keyup') this.$el.removeClass('brush-disabled');
     },
 
     onBrushEnd: function () { // Select the brushed nodes then remove the brush
@@ -124,42 +109,46 @@ var sigmaGrapher = function () {
           transform = this.transform,
           transformX = function (x) { return x * transform.scale + transform.translate[0]; },
           transformY = function (y) { return y * transform.scale + transform.translate[1]; };
+
       _.each(this.data.nodes, function (d) {
         var x = transformX(d.x), y = transformY(d.y);
         if(r[0][0] <= x && x < r[1][0] && r[0][1] <= y && y < r[1][1]) selectedNodes[d.id] = true;
       });
       this.selectedNodes = selectedNodes;
       this.$brush.call(this.brush.clear());
-
+      console.log('update selected nodes!');
       this.updateSelectedNodes();
     },
 
     updateSelectedNodes: function () {
       var selectedNodes = this.selectedNodes;
-      _.each(this.data.nodes, function (n) {
+
+      this.s.graph.nodes().forEach(function (n) {
         if (n.id in selectedNodes) {
           n.prevColor = n.prevColor !== undefined ? n.prevColor : n.color;
-          n.color = 8;
+          n.color = this.colors[8];
         } else n.color = n.prevColor !== undefined ? n.prevColor : n.color;
-      });
+      }.bind(this));
 
-      // var updatedNodes = _.chain(selectedNodes).keys().union(_.keys(this.previous)).map(Number).value();
+      this.s.graph.edges().forEach(function (l) {
+        if (l.from in selectedNodes && l.to in selectedNodes) {
+          l.prevColor = l.prevColor !== undefined ? l.prevColor : l.color;
+          l.color = this.colors[8];
+        } else l.color = l.prevColor !== undefined ? l.prevColor : l.color;
+      }.bind(this));
+
       this.s.refresh();
-      this.previous = selectedNodes;
     },
 
     updateColorings: function () { // random colors
       _.each(this.s.graph.nodes(), function (n) {
         n.color = this.colors[Math.floor(Math.random() * 8)];
       }.bind(this));
+
       _.each(this.s.graph.edges(), function (l) {
         l.color = this.colors[Math.floor(Math.random() * 8)];
       }.bind(this));
       this.s.refresh();
-    },
-
-    updateTransform: function () {
-      sigma.utils.zoomTo(this.s.camera, this.transform.translate[0], this.transform.translate[1], this.transform.scale);
     },
 
     toggleNetwork: function (e) {

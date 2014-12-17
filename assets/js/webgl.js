@@ -1,9 +1,10 @@
 var webglGrapher = function () {
   var grapher = {
     colors: ['#d73027', '#f46d43', '#fdae61', '#fee090', '#e0f3f8', '#abd9e9', '#74add1', '#4575b4', '#FFFFFF'],
+    previous: {},
     initialize: function () {
       this.brush = d3.svg.brush().on('brushend', this.onBrushEnd.bind(this));
-      this.zoom = d3.behavior.zoom();
+      this.zoom = d3.behavior.zoom().on('zoom', this.onZoom.bind(this));
 
       this.$el = $('div.network-container');
       this.$header = $('header');
@@ -23,14 +24,13 @@ var webglGrapher = function () {
     },
 
     render: function (data) {
-      data = _.clone(data);
-      this.width = this.$el.width();
-      this.height = this.$el.height();
-
+      // update the header
       var headerTitle = 'Network in WebGl (' + data.nodes.length + ' nodes & ' + data.links.length + ' links)';
       this.$header.find('span').html(headerTitle);
 
       // transform x & y coordinates to viewport
+      this.width = this.$el.width();
+      this.height = this.$el.height();
       var positionDomain = [
             d3.extent(data.nodes, function (n) { return n.x; }),
             d3.extent(data.nodes, function (n) { return n.y; })
@@ -43,15 +43,14 @@ var webglGrapher = function () {
           xTranslate = (this.width - dataWidth * scale) / 2 - positionDomain[0][0] * scale,
           yTranslate = (this.height - dataHeight * scale) / 2 - positionDomain[1][0] * scale;
       this.transform = {translate: [xTranslate, yTranslate], scale: scale};
-      this.previous = {};
 
       // set up d3 zoom
-      this.zoom // scale range factor of 10
+      this.zoom
         .scaleExtent([this.transform.scale / scaleRange, this.transform.scale * scaleRange])
         .translate(this.transform.translate)
-        .scale(this.transform.scale)
-        .on('zoom', this.onZoom.bind(this));
+        .scale(this.transform.scale);
 
+      // set the brush scale
       this.brush.x(d3.scale.identity().domain(positionDomain[0]))
           .y(d3.scale.identity().domain(positionDomain[1]))
           .clamp([false, false]); // Let the user select outside the domain of the graph
@@ -69,25 +68,21 @@ var webglGrapher = function () {
       _.each(data.nodes, function (n) { n.r = 1 + n.row_ids.length; });
 
       // make new grapher
-      var Grapher = Ayasdi.Grapher;
-      Grapher.setPalette('RdYlBu', this.colors);
-
-      this.canvas = new Grapher(this.width, this.height, {
+      Ayasdi.Grapher.setPalette('RdYlBu', this.colors);
+      this.canvas = new Ayasdi.Grapher(this.width, this.height, {
         transparent: true,
-        resolution: devicePixelRatio
+        resolution: devicePixelRatio // for retina
       });
+      this.canvas.foregroundColor(this.colors[0]);
       this.canvas.palette('RdYlBu');
       this.canvas.data(data);
-
-      this.canvas.foregroundColor('#ffffff');
-
       this.$el.append(this.canvas.view);
-      this.canvas.render();
 
       // transform the network
       this.data = data;
       this.updateTransform();
       this.updateColorings();
+
       return this;
     },
 
@@ -122,11 +117,6 @@ var webglGrapher = function () {
       this.updateSelectedNodes();
     },
 
-    setBrushEnabled: function (e) {
-      if (e.type === 'keydown' && (e.altKey || e.ctrlKey)) this.$el.addClass('brush-disabled');
-      else if (e.type === 'keyup') this.$el.removeClass('brush-disabled');
-    },
-
     updateSelectedNodes: function () {
       var selectedNodes = this.selectedNodes;
       _.each(this.data.nodes, function (n) {
@@ -137,16 +127,22 @@ var webglGrapher = function () {
       });
 
       var updatedNodes = _.chain(selectedNodes).keys().union(_.keys(this.previous)).map(Number).value();
-      this.canvas.update('nodes', updatedNodes).render();
       this.previous = selectedNodes;
+
+      this.canvas.update('nodes', updatedNodes).render();
     },
 
     updateColorings: function () { // random colors
       _.each(this.data.nodes, function (n) { n.color = Math.floor(Math.random() * 8); });
-      this.canvas.data(this.data).render();
+      this.canvas.update().render();
     },
 
     updateTransform: function () { this.canvas.transform(this.transform).render(); },
+
+    setBrushEnabled: function (e) {
+      if (e.type === 'keydown' && (e.altKey || e.ctrlKey)) this.$el.addClass('brush-disabled');
+      else if (e.type === 'keyup') this.$el.removeClass('brush-disabled');
+    },
 
     toggleNetwork: function (e) {
       var networkData = $(e.currentTarget).attr('id') === 'small' ? smallNetwork : largeNetwork;

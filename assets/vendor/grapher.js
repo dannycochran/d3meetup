@@ -110,6 +110,8 @@ var PIXI = require('./vendor/pixi.js'),
     pixelRes = typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1,
     noop = function () {};
 
+PIXI.dontSayHello = true;
+
 // Static
 var NODES = Grapher.NODES = 'nodes';
 var LINKS = Grapher.LINKS = 'links';
@@ -185,7 +187,7 @@ Grapher.prototype = {
     this.network = new PIXI.DisplayObjectContainer();
     this.stage.addChild(this.network);
 
-      // SpriteBatch containers
+    // SpriteBatch containers
     this.batches = {};
     this.batches[NODES] = {};
     this.batches[LINKS] = {};
@@ -194,6 +196,11 @@ Grapher.prototype = {
     this[LINKS] = [];
     this[NODES] = [];
 
+    // indices that will update
+    this.willUpdate = {};
+    this.updateAll = {};
+    this._clearUpdateQueue();
+
     // Listeners
     this.listeners = {};
     this.listeners[NODES] = {};
@@ -201,6 +208,10 @@ Grapher.prototype = {
 
     // Set initial transform
     this.transform({scale: 1, translate: [0, 0]});
+
+    // Bind some updaters
+    this._updateLink = this._updateLink.bind(this);
+    this._updateNode = this._updateNode.bind(this);
   },
 
   // ex. grapher.on('mouseover', function () {...});
@@ -269,32 +280,36 @@ Grapher.prototype = {
   //      grapher.update('links'); // updates only links
   //      grapher.update('nodes', 0, 4); // updates nodes indices 0 to 3 (4 is not inclusive)
   //      grapher.update('links', [0, 1, 2, 6, 32]); // updates links indexed by the indices
-  update: function (type, indices, end) {
-    if (indices && end) indices = _.range(indices, end);
+  update: function (type, start, end) {
+    var indices;
+    if (_.isArray(start)) indices = start;
+    else if (_.isNumber(start) && _.isNumber(end)) indices = _.range(start, end);
+
     if (_.isArray(indices)) {
-      _.each(indices, this._update(type, true));
-      if (type === NODES) _.each(this._findLinks(indices), this._update(LINKS, true));
+      this._addToUpdateQueue(type, indices);
+      if (type === NODES) this._addToUpdateQueue(LINKS, this._findLinks(indices));
     } else {
-      if (type !== NODES) _.each(this[LINKS], this._update(LINKS));
-      if (type !== LINKS) _.each(this[NODES], this._update(NODES));
+      this.updateAll[LINKS] = type !== NODES;
+      this.updateAll[NODES] = type !== LINKS;
     }
     return this;
   },
 
   // Update an individual node by index.
   updateNode: function (index, willUpdateLinks) {
-    this._updateNodeByIndex(index);
-    if (willUpdateLinks) _.each(this._findLinks([index]), this._update(LINKS, true));
+    this._addToUpdateQueue(NODES, [index]);
+    if (willUpdateLinks) this._addToUpdateQueue(LINKS, this._findLinks([index]));
     return this;
   },
 
   // Update an individual link by index.
   updateLink: function (index) {
-    this._updateLinkByIndex(index);
+    this._addToUpdateQueue(LINKS, [index]);
     return this;
   },
 
   render: function () {
+    this._update();
     this.renderer.render(this.stage);
     return this;
   },
@@ -302,7 +317,6 @@ Grapher.prototype = {
   animate: function (time) {
     if (!this.lastTime) this.lastTime = time;
 
-    this.update();
     this.render();
 
     this.lastTime = time;
@@ -369,10 +383,46 @@ Grapher.prototype = {
     this[type].push(sprite);
   },
 
-  _update: function (type, useIndex) {
-    var fn = type === LINKS ? '_updateLink' : '_updateNode';
-    if (useIndex) fn += 'ByIndex';
-    return this[fn].bind(this);
+  _addToUpdateQueue: function (type, indices) {
+    var insertIntoQueue = function (i) {
+          var atIndex = _.sortedIndex(this.willUpdate[type], i);
+          if (this.willUpdate[type][atIndex] !== i)
+            this.willUpdate[type].splice(atIndex, 0, i);
+        }.bind(this);
+
+    if (!this.updateAll[type] && _.isArray(indices)) _.each(indices, insertIntoQueue);
+    this.updateAll[type] = this.updateAll[type] || this.willUpdate[type].length >= this[type].length;
+  },
+
+  _clearUpdateQueue: function () {
+    this.willUpdate[LINKS] = [];
+    this.willUpdate[NODES] = [];
+    this.updateAll[LINKS] = false;
+    this.updateAll[NODES] = false;
+  },
+
+  _update: function () {
+    var updatingLinks = this.willUpdate[LINKS],
+        updatingNodes = this.willUpdate[NODES],
+        i;
+
+    if (this.updateAll[LINKS]) _.each(this[LINKS], this._updateLink);
+    else if (updatingLinks && updatingLinks.length) {
+      while (updatingLinks.length) {
+        i = updatingLinks.shift();
+        this._updateLinkByIndex(i);
+      }
+    }
+
+    if (this.updateAll[NODES]) _.each(this[NODES], this._updateNode);
+    else if (updatingNodes && updatingNodes.length) {
+      while (updatingNodes.length) {
+        i = updatingNodes.shift();
+        this._updateNodeByIndex(i);
+      }
+    }
+
+    this._clearUpdateQueue();
   },
 
   _updateLink: function (link, i) {
