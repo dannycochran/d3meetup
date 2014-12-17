@@ -12,10 +12,11 @@ var sigmaGrapher = function () {
       this.$brush.append('rect');
 
       this.$brush.call(this.brush);
-      d3.select(this.$el.get(0)).call(this.zoom);
+      // d3.select(this.$el.get(0)).call(this.zoom);
 
       this.$el.on('mousedown mouseup mousemove', this.onMouseEvent.bind(this));
-      this.$header.find('button').on('click', this.toggleNetwork.bind(this));
+      this.$header.find('button:not(#colorings)').on('click', this.toggleNetwork.bind(this));
+      this.$header.find('button#colorings').on('click', this.updateColorings.bind(this));
 
       $(window).on('keydown', this.setBrushEnabled.bind(this));
       $(window).on('keyup', this.setBrushEnabled.bind(this));
@@ -43,11 +44,11 @@ var sigmaGrapher = function () {
       this.previous = {};
 
       // set up d3 zoom
-      this.zoom // scale range factor of 10
-        .scaleExtent([this.transform.scale / scaleRange, this.transform.scale * scaleRange])
-        .translate(this.transform.translate)
-        .scale(this.transform.scale)
-        .on('zoom', this.onZoom.bind(this));
+      // this.zoom // scale range factor of 10
+      //   .scaleExtent([this.transform.scale / scaleRange, this.transform.scale * scaleRange])
+      //   .translate(this.transform.translate)
+      //   .scale(this.transform.scale)
+      //   .on('zoom', this.onZoom.bind(this));
 
       this.brush.x(d3.scale.identity().domain(positionDomain[0]))
           .y(d3.scale.identity().domain(positionDomain[1]))
@@ -73,7 +74,9 @@ var sigmaGrapher = function () {
         e.color = '#888';
       });
 
-      this.updateColorings();
+      _.each(this.data.nodes, function (n) {
+        n.color = this.colors[Math.floor(Math.random() * 8)];
+      }.bind(this));
 
       sigma.renderers.def = sigma.renderers.webgl;
       // Instantiate sigma:
@@ -84,13 +87,13 @@ var sigmaGrapher = function () {
         settings: {
           drawLabels: false,
           enableCamera: true,
-          mouseWheelEnabled: false,
-          mouseZoomDuration: 0
+          mouseWheelEnabled: true,
+          mouseZoomDuration: 50
         }
       });
 
       this.updateTransform();
-      this.$el.find('.sigma-labels, .sigma-mouse').remove();
+      this.$el.find('.sigma-labels').remove();
       return this;
     },
 
@@ -146,9 +149,10 @@ var sigmaGrapher = function () {
     },
 
     updateColorings: function () { // random colors
-      _.each(this.data.nodes, function (n) {
+      _.each(this.s.graph.nodes(), function (n) {
         n.color = this.colors[Math.floor(Math.random() * 8)];
       }.bind(this));
+      this.s.refresh();
     },
 
     updateTransform: function () {
