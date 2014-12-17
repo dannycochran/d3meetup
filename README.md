@@ -6,4 +6,4 @@ Testing the Performance of WebGL vs. SVG
         npm install
         node server.js
 
-2. Go to localhost:3000/webgl or localhost:3000/svg
+2. Go to localhost:3000/webgl, localhost:3000/sigma, or localhost:3000/svg
